@@ -173,12 +173,31 @@ const AddTodo = (props, { store }) => { // args same as (props, context)
 
 * There is a library called *ReactRedux* that is made to simplify the use of context as well as Container Components
 * takes care of reading the store from the context without needing to worry about contextTypes. This is great, because React recommends against using Context directly. It is "unstable" and "likely to change in the future".
+
+### Passing Store
+
 * Import the `Provider` class to create the wrapper for the top-level app component that will contain the store in its context
+
+### Generating Containers
+
 * Use the `connect` method to create a Container component by defining and passing in `mapStateToProps` and `mapDispatchToProps` (these functions behave exactly like they sound), as well at the Presentation Component being wrapped. (It is a curried function so these are chained function calls).
   * you can think of this as "connecting" the Presentation component to the Redux store
   * the result of the `connect` call is a Container component that is going to render the Presentation component after calculating the props from the passed in functions
   * NOTE: you should keep every component in its own file to avoid needing to make the mapping functions with long unique names. With their own files, you can call them the same thing every time
+  * `mapStateToProps` and `mapDispatchToProps` can take `props` as a second argument if the function requires them
 * if there is no state to map to props, you can simply pass in `null` in place of the `mapStateToProps` function
 * it is also very common to simply inject dispatch itself as a prop, so you can pass `null` in place of `mapDispatchToProps` to accomplish this
 * if both functions are `null`, they can be removed and `connect()` can be called without any arguments at
   * result: do NOT subscribe to the store and inject the dispatch function as a prop
+
+## Extracting Action Creators
+
+* generating an ID inside a component as part of the action dispatched is not a good idea because it is non-deterministic
+* we can extract the action creation code and make it stand alone in its own function, and then simply call `dispatch(actionCreator)`
+* an *Action Creator* is a function that takes any necessary arguments and returns an action
+* these functions are placed separate from components and reducers
+* Action Creators are very useful in documenting your code on large projects
+  * you may think that this code is boilerplate and that you would rather dispatch the action directly in the component
+  * instead, they tell your team the kinds of actions that components can dispatch, and this can be invaluable in large applications
+  * this also allows you to have all of your action creators in a single place, giving you an easy way to see all the actions that can be created by components in your app.
+  * for testing, you can use action creators directly without needing to worry about the actions internal structure, or being forced to use a particular component simply to test the action itself
