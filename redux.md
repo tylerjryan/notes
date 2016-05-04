@@ -81,8 +81,95 @@ Uses a library called *deep freeze* to make sure that his code is free of mutati
 * *Container components:* defines the behaviors of the components and passes them in through props
     * ie. top level App components
 
+## Container components
 
-## ReactRedux and Component Handling
+* Container components: job is to connect a presentation component to the Redux store, and specify the data and behavior that it needs
+* The goal is to be able to use the component anywhere without needing to pass in any additional data to the component that contains it. You can verify the implementation by confirming that no props are provided to the container component where it is used.
+* They are implemented as classes that take in props and access the state directly from `store.getState()`. Additionally, they must subscribe to the store directly, otherwise the component will not necessarily re-render when the app state changes. Ex:
+```
+class VisibleTodoList extends Component {
+    componentDidMount() {
+        // Use the return value to get the unsubscribe method
+        // use the React built-in forceUpdate to force an update any time the store state changes
+        this.unsubscribe = store.subscribe(() => this.forceUpdate());
+    }
+
+    componentWillUnmount() {
+        this.unsubscribe();
+    }
+
+    render() {
+        const props = this.props;
+        const state = store.getState();
+
+        return (
+            <TodoList ...
+                ...
+            />
+        );
+    }
+}
+```
+* You shouldn't treat the presentation/container architecture as a requirement. Only do this when it truly reduces the complexity of the code base. In general, start by trying to just extract the presentational components. If there is too much boilerplate from passing props down the tree, then create containers around them to load the data and specify the behavior
+
+## Passing the store explicitly through props
+
+* a global `store` variable works fine in a single-file example, but doesn't scale out to real apps for a few reasons
+  * makes container components harder to test because they reference a specific store, and you may want to use a mock store in a test
+  * makes it very hard to implement universal applications that are rendered on the server, because on the server, you want to supply a different store instance for every request, because each request has different data.
+* in `componentDidMount`, get the store: `const { store } = this.props;`
+* if you simply pass the store creation as a prop to the top level component, you'll end up passing it as a prop all the way down the tree, and this is very inconvenient. But there is a better way: passing the store implicitly
+
+## Passing the store implicitly via Context
+
+* there is another way to pass the store using the advanced React feature called *Context*
+* create a `Provider` class that renders its children. This class with implement Context to make the store available to all of its children, including grandchildren
+* the top level app component will then be included as a child of the `Provider`, and therefore every component in the app will have access to the store. It does this using a method called `getChildContext()`, which will be called by React.
+* For this to work, you must specify `childContextTypes` for the component that defines `getChildContext` (see example). These are essential for the Context to be turned on. These are similar to normal propTypes but are required. For more on propTypes, see [here](https://facebook.github.io/react/docs/reusable-components.html).
+```
+class Provider extends Component {
+  getChildContext() {
+    return {
+      store: this.props.store
+    };
+  }
+
+  render() {
+    return this.props.children
+  }
+}
+Provider.childContextTypes = {
+  store: React.PropTypes.object
+};
+...
+const { createStore } = Redux;
+
+ReactDOM.render(
+  <Provider store={createStore(appReducer)}>
+    <App />
+  </Provider>,
+  document.getElementById('root')
+);
+```
+* for a component to receive the relevant context, it must specify `contextTypes` like this:
+```
+ComponentClassName.contextTypes = {
+  store: React.PropTypes.object
+};
+```
+* any component that meets the above will therefore receive the Context and can extract it like this:
+  `const { store } = this.context` or `const store = this.context.store`
+* for functional components, the Context will be passed as a second argument after the props, and you can extract the store directly:
+```
+const AddTodo = (props, { store }) => { // args same as (props, context)
+  ...
+  return (
+    ...
+    )
+}
+```
+
+## React-Redux and Component Handling
 
 * There is a library called *ReactRedux* that is made to simplify the use of context as well as Container Components
 * takes care of reading the store from the context without needing to worry about contextTypes. This is great, because React recommends against using Context directly. It is "unstable" and "likely to change in the future".
