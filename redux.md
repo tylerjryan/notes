@@ -80,3 +80,18 @@ Uses a library called *deep freeze* to make sure that his code is free of mutati
 * *Presentation Components:* Treat React components as "presentation" components, by passing in onClick handlers as props instead of defining the logic inside the component itself
 * *Container components:* defines the behaviors of the components and passes them in through props
     * ie. top level App components
+
+
+## ReactRedux and Component Handling
+
+* There is a library called *ReactRedux* that is made to simplify the use of context as well as Container Components
+* takes care of reading the store from the context without needing to worry about contextTypes. This is great, because React recommends against using Context directly. It is "unstable" and "likely to change in the future".
+* Import the `Provider` class to create the wrapper for the top-level app component that will contain the store in its context
+* Use the `connect` method to create a Container component by defining and passing in `mapStateToProps` and `mapDispatchToProps` (these functions behave exactly like they sound), as well at the Presentation Component being wrapped. (It is a curried function so these are chained function calls).
+  * you can think of this as "connecting" the Presentation component to the Redux store
+  * the result of the `connect` call is a Container component that is going to render the Presentation component after calculating the props from the passed in functions
+  * NOTE: you should keep every component in its own file to avoid needing to make the mapping functions with long unique names. With their own files, you can call them the same thing every time
+* if there is no state to map to props, you can simply pass in `null` in place of the `mapStateToProps` function
+* it is also very common to simply inject dispatch itself as a prop, so you can pass `null` in place of `mapDispatchToProps` to accomplish this
+* if both functions are `null`, they can be removed and `connect()` can be called without any arguments at
+  * result: do NOT subscribe to the store and inject the dispatch function as a prop
