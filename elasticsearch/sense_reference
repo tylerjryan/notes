@@ -1,0 +1,725 @@
+# SENSE REFERENCE GUIDE FOR BASIC ACTIONS
+
+# Get all documents
+GET _search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# Check that elasticsearch is running
+GET /
+
+# Count the number of documents in the cluster
+GET _count?pretty
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# ----------------------------------------
+# START GETTING STARTED EXAMPLE
+
+# Delete the `megacorp` index in case it already exists
+DELETE /megacorp
+
+# Index document 1, type "employee", in the
+# "megacorp" index
+PUT /megacorp/employee/1
+{
+    "first_name" : "John",
+    "last_name" :  "Smith",
+    "age" :        25,
+    "about" :      "I love to go rock climbing",
+    "interests": [ "sports", "music" ]
+}
+
+# Index two more documents
+PUT /megacorp/employee/2
+{
+    "first_name" :  "Jane",
+    "last_name" :   "Smith",
+    "age" :         32,
+    "about" :       "I like to collect rock albums",
+    "interests":  [ "music" ]
+}
+
+PUT /megacorp/employee/3
+{
+    "first_name" :  "Douglas",
+    "last_name" :   "Fir",
+    "age" :         35,
+    "about":        "I like to build cabinets",
+    "interests":  [ "forestry" ]
+}
+
+# Get all employees
+GET /megacorp/employee/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# Retrieve the document
+GET /megacorp/employee/1
+
+# Update the document, by PUTing it again
+PUT /megacorp/employee/1
+{
+    "first_name" : "John",
+    "last_name" :  "Smith",
+    "age" :        26,
+    "about" :      "I love to go rock climbing",
+    "interests": [ "sports", "music", "movies" ]
+}
+
+# Retrieve the updated document
+GET /megacorp/employee/1
+
+# Delete the document
+DELETE /megacorp/employee/1
+
+# Note: HEAD/exists requests do not work in Sense
+# because they only return HTTP headers, not
+# a JSON body
+
+
+# ---
+# BASIC SEARCH QUERIES
+
+# Search for all employees in the megacorp index:
+GET /megacorp/employee/_search
+
+# Search for all employees in the megacorp index
+# who have "Smith" in the last_name field
+GET /megacorp/employee/_search?q=last_name:Smith
+
+# Same query as above, but using the Query DSL
+GET /megacorp/employee/_search
+{
+  "query": {
+    "match": {
+      "last_name": "smith"
+    }
+  }
+}
+
+# Find all employees whose `last_name` is Smith
+# and who are older than 30
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "filtered" : {
+            "filter" : {
+                "range" : {
+                    "age" : { "gt" : 30 }
+                }
+            },
+            "query" : {
+                "match" : {
+                    "last_name" : "smith"
+                }
+            }
+        }
+    }
+}
+
+# Find all employees who enjoy "rock" or "climbing"
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+# Find all employees who enjoy "rock climbing"
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    }
+}
+
+# Find all employees who enjoy "rock climbing"
+# and highlight the matches
+GET /megacorp/employee/_search
+{
+    "query" : {
+        "match_phrase" : {
+            "about" : "rock climbing"
+        }
+    },
+    "highlight": {
+        "fields" : {
+            "about" : {}
+        }
+    }
+}
+
+# ---
+# AGGREGATIONS
+
+# Calculate the most popular interests for all employees
+GET /megacorp/employee/_search
+{
+  "aggs": {
+    "all_interests": {
+      "terms": {
+        "field": "interests"
+      }
+    }
+  }
+}
+
+# Calculate the most popular interests for
+# employees named "Smith"
+GET /megacorp/employee/_search
+{
+  "query": {
+    "match": {
+      "last_name": "smith"
+    }
+  },
+  "aggs": {
+    "all_interests": {
+      "terms": {
+        "field": "interests"
+      }
+    }
+  }
+}
+
+# Calculate the average age of employee per interest
+GET /megacorp/employee/_search
+{
+    "aggs" : {
+        "all_interests" : {
+            "terms" : { "field" : "interests" },
+            "aggs" : {
+                "avg_age" : {
+                    "avg" : { "field" : "age" }
+                }
+            }
+        }
+    }
+}
+
+# END OF GETTING STARTED EXAMPLE
+# ----------------------------------------
+
+# RETRIEVING MULTIPLE DOCUMENTS
+
+# Delete all data in the `website` index
+DELETE /website
+
+# Insert two documents
+PUT /website/blog/2
+{
+  "title": "My first external blog entry",
+  "text":  "This is a piece of cake..."
+}
+
+PUT /website/pageviews/1
+{
+   "views": 2
+}
+
+# Retrieve multiple documents
+GET /_mget
+{
+   "docs" : [
+      {
+         "_index" : "website",
+         "_type" :  "blog",
+         "_id" :    2
+      },
+      {
+         "_index" : "website",
+         "_type" :  "pageviews",
+         "_id" :    1,
+         "_source": "views"
+      }
+   ]
+}
+
+# Retrieve multiple docs, with a default index and type
+GET /website/blog/_mget
+{
+   "docs" : [
+      { "_id" : 2 },
+      { "_type" : "pageviews", "_id" :   1 }
+   ]
+}
+
+# Retrieve multiple docs with a default index and type, short form
+GET /website/blog/_mget
+{
+   "ids" : [ "2", "1" ]
+}
+
+# ----------------------------------------
+
+# BULK API
+
+# Delete all data in the `website` index
+DELETE /website
+
+# Create a document
+PUT /website/blog/123
+{
+  "title": "My first blog entry",
+  "text":  "I am starting to get the hang of this...",
+  "date":  "2014/01/02"
+}
+
+# Create, index, update and delete multiple documents
+POST /_bulk
+{ "delete": { "_index": "website", "_type": "blog", "_id": "123" }}
+{ "create": { "_index": "website", "_type": "blog", "_id": "123" }}
+{ "title":    "My first blog post" }
+{ "index":  { "_index": "website", "_type": "blog" }}
+{ "title":    "My second blog post" }
+{ "update": { "_index": "website", "_type": "blog", "_id": "123", "_retry_on_conflict" : 3} }
+{ "doc" : {"title" : "My updated blog post"} }
+
+
+# Get all blog posts
+GET /website/blog/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
+
+# ----------------------------------------
+# START "SEARCHING -- THE BASIC TOOLS
+
+# Populate test data in "us" and "gb" indexes
+POST /_bulk
+{ "create": { "_index": "us", "_type": "user", "_id": "1" }}
+{ "email" : "john@smith.com", "name" : "John Smith", "username" : "@john" }
+{ "create": { "_index": "gb", "_type": "user", "_id": "2" }}
+{ "email" : "mary@jones.com", "name" : "Mary Jones", "username" : "@mary" }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "3" }}
+{ "date" : "2014-09-13", "name" : "Mary Jones", "tweet" : "Elasticsearch means full text search has never been so easy", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "4" }}
+{ "date" : "2014-09-14", "name" : "John Smith", "tweet" : "@mary it is not just text, it does everything", "user_id" : 1 }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "5" }}
+{ "date" : "2014-09-15", "name" : "Mary Jones", "tweet" : "However did I manage before Elasticsearch?", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "6" }}
+{ "date" : "2014-09-16", "name" : "John Smith",  "tweet" : "The Elasticsearch API is really easy to use", "user_id" : 1 }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "7" }}
+{ "date" : "2014-09-17", "name" : "Mary Jones", "tweet" : "The Query DSL is really powerful and flexible", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "8" }}
+{ "date" : "2014-09-18", "name" : "John Smith", "user_id" : 1 }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "9" }}
+{ "date" : "2014-09-19", "name" : "Mary Jones", "tweet" : "Geo-location aggregations are really cool", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "10" }}
+{ "date" : "2014-09-20", "name" : "John Smith", "tweet" : "Elasticsearch surely is one of the hottest new NoSQL products", "user_id" : 1 }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "11" }}
+{ "date" : "2014-09-21", "name" : "Mary Jones", "tweet" : "Elasticsearch is built for the cloud, easy to scale", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "12" }}
+{ "date" : "2014-09-22", "name" : "John Smith", "tweet" : "Elasticsearch and I have left the honeymoon stage, and I still love her.", "user_id" : 1 }
+{ "create": { "_index": "gb", "_type": "tweet", "_id": "13" }}
+{ "date" : "2014-09-23", "name" : "Mary Jones", "tweet" : "So yes, I am an Elasticsearch fanboy", "user_id" : 2 }
+{ "create": { "_index": "us", "_type": "tweet", "_id": "14" }}
+{ "date" : "2014-09-24", "name" : "John Smith", "tweet" : "How many more cheesy tweets do I have to write?", "user_id" : 1 }
+
+# The empty search; returns all documents in Elasticsearch
+GET /_search
+
+# Return all documents in both indexes for test data, "us" and "gb"
+GET /gb,us/_search
+
+### using Pagination to show different portions of the data; uses "from" and "size" parameters
+# Results 0..4
+GET /gb,us/_search?size=5
+
+# Results 5..9
+GET /gb,us/_search?size=5&from=5
+
+# Results 10..14
+GET /gb,us/_search?size=5&from=10
+
+### Looking at how mapping affects search results
+# Find `2014` in the `_all` field: 12 results
+GET /_search?q=2014
+
+# Find `2014-09-15` in the `_all` field: 12 results
+GET /_search?q=2014-09-15
+
+# Find `2014-09-15` in the `date` field: 1 result
+GET /_search?q=date:2014-09-15
+
+# Find `2014` in the `date` field: 0 results
+GET /_search?q=date:2014
+
+# Retrieve the mapping for index:gb, type: tweet
+GET /gb/_mapping/tweet
+
+### Testing Analyzers
+# Analyze the `text` with the `standard` analyzer
+GET /_analyze?analyzer=standard&text=Text to analyze
+
+### Playing with Mappings and Analyzers together
+# Delete the `gb` index
+DELETE /gb
+
+# Specify mappings when creating the index
+PUT /gb
+{
+  "mappings": {
+    "tweet" : {
+      "properties" : {
+        "tweet" : {
+          "type" :    "string",
+          "analyzer": "english"
+        },
+        "date" : {
+          "type" :   "date"
+        },
+        "name" : {
+          "type" :   "string"
+        },
+        "user_id" : {
+          "type" :   "long"
+        }
+      }
+    }
+  }
+}
+
+# Update mappings on an existing index
+PUT /gb/_mapping/tweet
+{
+  "properties" : {
+    "tag" : {
+      "type" :    "string",
+      "index":    "not_analyzed"
+    }
+  }
+}
+
+# Check new mapping
+GET /gb/_mapping/tweet
+
+# Test the analyzer for the `tweet` field
+GET /gb/_analyze?field=tweet&text=Black-cats
+
+# Test the analyzer for the `tag` field
+GET /gb/_analyze?field=tag&text=Black-cats
+
+
+### Complex Queries
+# Bool query
+GET /_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "match": {
+          "tweet": "elasticsearch"
+        }
+      },
+      "must_not": {
+        "match": {
+          "name": "mary"
+        }
+      },
+      "should": {
+        "match": {
+          "tweet": "full text"
+        }
+      }
+    }
+  }
+}
+
+# emails that contain business opportunity and should either be starred, or be both in the Inbox and not marked as spam
+GET /_search
+{
+  "query": {
+    "bool": {
+      "must": {
+        "match": {
+          "email": "business opportunity"
+        }
+      },
+      "should": [
+        {
+          "match": {
+            "starred": true
+          }
+        },
+        {
+          "bool" : {
+            "must" : {
+              "match" : {
+                "folder" : "inbox"
+              }
+            },
+            "must_not" : {
+              "match" : {
+                "spam" : true
+              }
+            }
+          }
+        }
+      ],
+      "minimum_number_should_match": 1
+    }
+  }
+}
+
+
+# -----------------------------
+# FILTER AND QUERY EXAMPLES
+
+# Delete the `test` index
+DELETE /test
+
+# Insert some example docs
+PUT /test/test/1
+{
+  "folder": "inbox",
+  "email": "Big opportunity"
+}
+
+PUT /test/test/2
+{
+  "folder": "spam",
+  "email": "Business opportunity"
+}
+
+PUT /test/test/3
+{
+  "folder": "inbox",
+  "email": "Urgent business proposal"
+}
+
+# Where `email` contains "business" or "opportunity
+# and `folder` is "inbox"
+GET /test/test/_search
+{
+  "query": {
+    "filtered": {
+      "query": {
+        "match": {
+          "email": "business opportunity"
+        }
+      },
+      "filter": {
+        "term": {
+          "folder": "inbox"
+        }
+      }
+    }
+  }
+}
+
+# Where `folder` is "inbox"
+GET /test/test/_search
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "term": {
+          "folder": "inbox"
+        }
+      }
+    }
+  }
+}
+
+# Where `folder` is "inbox"
+# and `email` must not contain "urgent", "business"
+# or "proposal"
+GET /test/test/_search
+{
+  "query": {
+    "filtered": {
+      "filter": {
+        "bool": {
+          "must": {
+            "term": {
+              "folder": "inbox"
+            }
+          },
+          "must_not": {
+            "query": {
+              "match": {
+                "email": "urgent business proposal"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+# -------------------------------
+# MAPPER ATTACHMENTS
+
+### Hello World
+# Create an index, with a document type "person", with a property "cv" (like a resume), that has type "attachment". This tells Elasticsearch to treat the field value as a base64 encoded string that represents a file.
+POST /trying-out-mapper-attachments
+{
+  "mappings": {
+    "person": {
+      "properties": {
+        "cv": { "type": "attachment" }
+}}}}
+
+# Index a new document populated with a base64-encoded attachment
+POST /trying-out-mapper-attachments/person/1
+{
+  "cv": "e1xydGYxXGFuc2kNCkxvcmVtIGlwc3VtIGRvbG9yIHNpdCBhbWV0DQpccGFyIH0="
+}
+
+# Search for the document using words in the attachment. Note that you just get a "hit", but don't actually see the contents.
+POST /trying-out-mapper-attachments/person/_search
+{
+  "query": {
+    "query_string": {
+      "query": "ipsum"
+}}}
+
+# Create a mapping that includes all the metadata types
+PUT test
+PUT /test/person/_mapping
+{
+    "person" : {
+        "properties" : {
+            "file" : {
+                "type" : "attachment",
+                "fields" : {
+                    "content" : {"index" : "no"},
+                    "title" : {"store" : "yes"},
+                    "date" : {"store" : "yes"},
+                    "author" : {"analyzer" : "english"},
+                    "keywords" : {"store" : "yes"},
+                    "content_type" : {"store" : "yes"},
+                    "content_length" : {"store" : "yes"},
+                    "language" : {"store" : "yes"}
+                }
+            }
+        }
+    }
+}
+
+# If you need to query on metadata fields, use the attachment field name dot the metadata field. For example:
+DELETE /test
+PUT /test
+PUT /test/person/_mapping
+{
+  "person": {
+    "properties": {
+      "file": {
+        "type": "attachment",
+        "fields": {
+          "content_type": {
+            "type": "string",
+            "store": true
+          }
+        }
+      }
+    }
+  }
+}
+PUT /test/person/1?refresh=true
+{
+  "file": "IkdvZCBTYXZlIHRoZSBRdWVlbiIgKGFsdGVybmF0aXZlbHkgIkdvZCBTYXZlIHRoZSBLaW5nIg=="
+}
+GET /test/person/_search
+{
+  "fields": [ "file.content_type" ],
+  "query": {
+    "match": {
+      "file.content_type": "text plain"
+    }
+  }
+}
+
+GET _
+
+# If you want to highlight your attachment content, you will need to set "store": true and "term_vector":"with_positions_offsets" for your attachment field. Here is a full script which does it:
+DELETE /test
+PUT /test
+PUT /test/person/_mapping
+{
+  "person": {
+    "properties": {
+      "file": {
+        "type": "attachment",
+        "fields": {
+          "content": {
+            "type": "string",
+            "term_vector":"with_positions_offsets",
+            "store": true
+          }
+        }
+      }
+    }
+  }
+}
+PUT /test/person/1?refresh=true
+{
+  "file": "IkdvZCBTYXZlIHRoZSBRdWVlbiIgKGFsdGVybmF0aXZlbHkgIkdvZCBTYXZlIHRoZSBLaW5nIg=="
+}
+GET /test/person/_search
+{
+  "fields": [],
+  "query": {
+    "match": {
+      "file.content": "king queen"
+    }
+  },
+  "highlight": {
+    "fields": {
+      "file.content": {
+      }
+    }
+  }
+}
+
+GET /test/person/_search
+{
+  "fields": ["file.content"],
+  "query" : {
+    "bool" : {
+      "must" : {
+        "match" : {
+          "file.content" : "king queen"
+        }
+      },
+      "should" : {
+        "match" : {
+          "file.content" : "god"
+        }
+      }
+    }
+  },
+  "highlight": {
+    "fields": {
+      "file.content": {}
+    }
+  }
+}
+
+GET test/person/1
+
+POST /test/person/_search
+{
+  "query": {
+    "match_all": {}
+  }
+}
